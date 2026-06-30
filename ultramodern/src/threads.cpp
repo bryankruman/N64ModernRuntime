@@ -47,6 +47,16 @@ bool ultramodern::is_game_thread() {
     return ::is_game_thread;
 }
 
+// Priority of the currently-running N64 thread, or -1 off a game thread. Used to gate cooperative
+// preemption (bar_preempt.cpp) to the low-priority App thread only — yielding on the audio manager
+// (pri ~110) or scheduler (pri 127) would stall their own work and break audio sequencing.
+int ultramodern::this_thread_priority(RDRAM_ARG1) {
+    if (thread_self == NULLPTR) {
+        return -1;
+    }
+    return TO_PTR(OSThread, thread_self)->priority;
+}
+
 #if 0
 int main(int argc, char** argv) {
     ultramodern::set_entrypoint_thread();
@@ -96,7 +106,7 @@ void ultramodern::set_native_thread_priority(ThreadPriority pri) {
             throw std::runtime_error("Invalid thread priority!");
             break;
     }
-    // SetThreadPriority(GetCurrentThread(), nPriority);
+    SetThreadPriority(GetCurrentThread(), nPriority);   // BAR perf: honor ultramodern's thread priorities
 }
 #elif defined(__linux__)
 #include <sys/prctl.h>

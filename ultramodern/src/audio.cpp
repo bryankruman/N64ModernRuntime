@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include "ultramodern/ultra64.h"
 #include "ultramodern/ultramodern.hpp"
 #include <cassert>
@@ -35,10 +36,24 @@ void ultramodern::queue_audio_buffer(RDRAM_ARG PTR(int16_t) audio_data_, uint32_
     }
 }
 
-// For SDL2
-//uint32_t buffer_offset_frames = 1;
-// For Godot
-float buffer_offset_frames = 0.5f;
+// How many VIs of audio to keep buffered ahead. Higher = more latency but more immune to a momentary dip
+// in the host audio queue draining it to empty (which crackles). Upstream: SDL2=1, Godot=0.5f. Default 2.5
+// (~42 ms): at 1.0 (~16 ms) the queue is too thin to absorb normal host/OS scheduling + SDL device-callback
+// jitter and it crackles, independent of the game-side stall fixes (MIDI 2.0s busy-wait in
+// func_uvcmidi_rom_00400940, and cooperative preemption in src/main/bar_preempt.cpp + fix-recompiled.sh rule
+// F, both of which remove the GAME-thread stalls). Override live with env BAR_AUDIO_BUFFER (e.g. =1.8) to
+// trade latency vs crackle to taste — see bar_buffer_offset_frames().
+float buffer_offset_frames = 2.5f;
+
+// Effective offset: BAR_AUDIO_BUFFER env override (cached once) if set & sane, else buffer_offset_frames.
+static float bar_buffer_offset_frames() {
+    static const float v = [] {
+        const char* e = std::getenv("BAR_AUDIO_BUFFER");
+        if (e && *e) { float f = (float)std::atof(e); if (f >= 0.0f && f < 64.0f) return f; }
+        return buffer_offset_frames;
+    }();
+    return v;
+}
 
 // If there's ever any audio popping, check here first. Some games are very sensitive to
 // the remaining sample count and reporting a number that's too high here can lead to issues.
@@ -57,8 +72,9 @@ uint32_t ultramodern::get_remaining_audio_bytes() {
     // audio popping on games that use the buffered audio byte count to determine how many samples
     // to generate.
     uint32_t samples_per_vi = (sample_rate / 60);
-    if (buffered_byte_count > static_cast<uint32_t>(buffer_offset_frames * sizeof(int16_t) * samples_per_vi)) {
-        buffered_byte_count -= static_cast<uint32_t>(buffer_offset_frames * sizeof(int16_t) * samples_per_vi);
+    const float offset = bar_buffer_offset_frames();
+    if (buffered_byte_count > static_cast<uint32_t>(offset * sizeof(int16_t) * samples_per_vi)) {
+        buffered_byte_count -= static_cast<uint32_t>(offset * sizeof(int16_t) * samples_per_vi);
     }
     else {
         buffered_byte_count = 0;

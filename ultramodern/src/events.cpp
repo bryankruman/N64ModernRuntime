@@ -2,6 +2,8 @@
 #include <atomic>
 #include <chrono>
 #include <cinttypes>
+#include <cstdio>    // BAR FPS probe
+#include <cstdlib>   // BAR FPS probe (getenv)
 #include <variant>
 #include <unordered_map>
 #include <utility>
@@ -442,14 +444,34 @@ static const OSViMode dummy_mode = []() {
 void set_dummy_vi(bool odd) {
     ViState* next_state = events_context.vi.get_next_state();
     next_state->mode = &dummy_mode;
-    // Set up a dummy framebuffer.
-    next_state->framebuffer = 0x80700000;
-    if (odd) {
-        next_state->framebuffer += 0x25800;
-    }
+    // BAR boots with osViBlack(TRUE)+osViSwapBuffer(0x100000), then un-blacks ONLY once its gfx manager
+    // sees osViGetCurrentFramebuffer()==0x100000 (uvgfxmgr_rom.c). That check runs while this dummy VI
+    // is still the current state, so the dummy framebuffer MUST be 0x100000 (BAR's boot framebuffer) or
+    // the un-black never fires and the screen stays black forever (RT64 refuses to present a VI whose
+    // hStart==0, which is what VI_STATE_BLACK forces). Was 0x80700000.
+    (void)odd;
+    next_state->framebuffer = 0x100000;
 }
 
 extern "C" void osViSwapBuffer(RDRAM_ARG PTR(void) frameBufPtr) {
+    // BAR perf probe: count game-frame swaps and report FPS once per second when BAR_FPS is set.
+    // Negligible cost (off entirely unless the env var is present), useful for before/after measuring.
+    {
+        static const bool fps_enabled = std::getenv("BAR_FPS") != nullptr;
+        if (fps_enabled) {
+            static int frames = 0;
+            static auto last = std::chrono::steady_clock::now();
+            ++frames;
+            auto now = std::chrono::steady_clock::now();
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - last).count();
+            if (ms >= 1000) {
+                std::fprintf(stderr, "[BeetleRecomp] FPS %.1f\n", frames * 1000.0 / (double)ms);
+                std::fflush(stderr);
+                frames = 0;
+                last = now;
+            }
+        }
+    }
     std::lock_guard lock{ events_context.message_mutex };
     events_context.vi.get_next_state()->framebuffer = frameBufPtr;
 }

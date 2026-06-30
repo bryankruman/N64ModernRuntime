@@ -99,6 +99,7 @@ PTR(OSThread) this_thread();
 void set_entrypoint_thread();
 bool is_entrypoint_thread();
 bool is_game_thread();
+int this_thread_priority(RDRAM_ARG1);   // priority of the running N64 thread, -1 off a game thread
 void submit_rsp_task(RDRAM_ARG PTR(OSTask) task);
 void send_si_message();
 uint32_t get_speed_multiplier();
