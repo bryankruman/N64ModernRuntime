@@ -177,6 +177,13 @@ extern moodycamel::LightweightSemaphore graphics_shutdown_ready;
 
 void set_dummy_vi(bool odd);
 
+// Pause state for the in-game pause menu. While paused, vi_thread_func still posts ScreenUpdateAction
+// (the render context re-renders the last frame so the overlay stays live) but stops sending VI/AI
+// events to the game, freezing the simulation at a frame boundary (it blocks in osRecvMesg).
+static std::atomic<bool> g_sim_paused{false};
+void ultramodern::set_paused(bool paused) { g_sim_paused.store(paused, std::memory_order_relaxed); }
+bool ultramodern::is_paused() { return g_sim_paused.load(std::memory_order_relaxed); }
+
 void vi_thread_func() {
     ultramodern::set_native_thread_name("VI Thread");
     // This thread should be prioritized over every other thread in the application, as it's what allows
@@ -225,8 +232,9 @@ void vi_thread_func() {
         // Update VI registers and swap VI modes.
         events_context.vi.update_vi();
 
-        // If the game has started, handle sending VI and AI events.
-        if (ultramodern::is_game_started()) {
+        // If the game has started, handle sending VI and AI events. Skipped while paused so the game
+        // blocks waiting for the next VI message (frozen sim); ScreenUpdateAction above still fires.
+        if (ultramodern::is_game_started() && !g_sim_paused.load(std::memory_order_relaxed)) {
             remaining_retraces--;
             
             std::lock_guard lock{ events_context.message_mutex };

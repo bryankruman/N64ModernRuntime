@@ -146,6 +146,12 @@ struct gfx_callbacks_t {
 
 bool is_game_started();
 void quit();
+// Pause/resume the game simulation (in-game pause menu). While paused, the VI thread stops delivering
+// VI/AI events to the game (freezing it at osRecvMesg) but keeps posting screen updates; the render
+// context re-submits the last display list each frame so RT64 keeps presenting the frozen scene (so the
+// menu overlay stays live). See src/main/rt64_render_context.cpp.
+void set_paused(bool paused);
+bool is_paused();
 void join_event_threads();
 void join_thread_cleaner_thread();
 void join_saving_thread();
