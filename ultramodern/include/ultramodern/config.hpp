@@ -61,6 +61,14 @@ namespace ultramodern {
             Off,
             OptionCount
         };
+        // BAR seam fix (TODO #2B): N64 VI "divot" filter that fills 1px cracks between polygons.
+        // Auto = follow the game's VI divotEnable bit (on for BAR's LAN1 mode).
+        enum class DivotFilter {
+            Auto,
+            On,
+            Off,
+            OptionCount
+        };
 
         class GraphicsConfig {
         public:
@@ -75,6 +83,7 @@ namespace ultramodern {
             HighPrecisionFramebuffer hpfb_option;
             int rr_manual_value;
             int ds_option;
+            DivotFilter divot_option;
 
             virtual ~GraphicsConfig() = default;
 
@@ -135,6 +144,12 @@ namespace ultramodern {
             {ultramodern::renderer::HighPrecisionFramebuffer::Auto, "Auto"},
             {ultramodern::renderer::HighPrecisionFramebuffer::On, "On"},
             {ultramodern::renderer::HighPrecisionFramebuffer::Off, "Off"},
+        });
+
+        NLOHMANN_JSON_SERIALIZE_ENUM(ultramodern::renderer::DivotFilter, {
+            {ultramodern::renderer::DivotFilter::Auto, "Auto"},
+            {ultramodern::renderer::DivotFilter::On, "On"},
+            {ultramodern::renderer::DivotFilter::Off, "Off"},
         });
     }
 }
