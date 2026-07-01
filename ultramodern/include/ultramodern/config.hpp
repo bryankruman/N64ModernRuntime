@@ -9,9 +9,13 @@
 namespace ultramodern {
     namespace renderer {
         enum class Resolution {
-            Original,
-            Original2x,
-            Auto,
+            Original,      // 1x native internal resolution
+            Original2x,    // 2x native
+            Auto,          // match the window (integer scale)
+            Native3x,      // 3x native
+            Native4x,      // 4x native
+            Native6x,      // 6x native
+            Native8x,      // 8x native
             OptionCount
         };
         enum class WindowMode {
@@ -84,6 +88,10 @@ namespace ultramodern {
             {ultramodern::renderer::Resolution::Original, "Original"},
             {ultramodern::renderer::Resolution::Original2x, "Original2x"},
             {ultramodern::renderer::Resolution::Auto, "Auto"},
+            {ultramodern::renderer::Resolution::Native3x, "Native3x"},
+            {ultramodern::renderer::Resolution::Native4x, "Native4x"},
+            {ultramodern::renderer::Resolution::Native6x, "Native6x"},
+            {ultramodern::renderer::Resolution::Native8x, "Native8x"},
         });
 
         NLOHMANN_JSON_SERIALIZE_ENUM(ultramodern::renderer::WindowMode, {
