@@ -69,6 +69,17 @@ namespace ultramodern {
             Off,
             OptionCount
         };
+        // BAR letterbox control: how the 4:3 image is fit to a window of a different aspect ratio.
+        //   Pillarbox = keep aspect + black bars (default; only visible when the window isn't 4:3).
+        //   Crop      = keep aspect, fill the window, crop the overflow (removes the left/right pillars).
+        //   Stretch   = fill the window, distort to its aspect.
+        // Pairs with ar_option=Expand (widen 3D FOV) so Crop/Stretch show more scene instead of just zooming.
+        enum class PresentFillMode {
+            Pillarbox,
+            Crop,
+            Stretch,
+            OptionCount
+        };
 
         class GraphicsConfig {
         public:
@@ -84,6 +95,7 @@ namespace ultramodern {
             int rr_manual_value;
             int ds_option;
             DivotFilter divot_option;
+            PresentFillMode pfm_option;   // BAR: window-fit mode (pillarbox/crop/stretch) for the final present
 
             virtual ~GraphicsConfig() = default;
 
@@ -150,6 +162,12 @@ namespace ultramodern {
             {ultramodern::renderer::DivotFilter::Auto, "Auto"},
             {ultramodern::renderer::DivotFilter::On, "On"},
             {ultramodern::renderer::DivotFilter::Off, "Off"},
+        });
+
+        NLOHMANN_JSON_SERIALIZE_ENUM(ultramodern::renderer::PresentFillMode, {
+            {ultramodern::renderer::PresentFillMode::Pillarbox, "Pillarbox"},
+            {ultramodern::renderer::PresentFillMode::Crop, "Crop"},
+            {ultramodern::renderer::PresentFillMode::Stretch, "Stretch"},
         });
     }
 }
