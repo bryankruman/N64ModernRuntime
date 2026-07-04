@@ -211,11 +211,20 @@ extern "C" void unload_overlay_by_id(uint32_t id) {
     auto find_it = std::find_if(loaded_sections.begin(), loaded_sections.end(), [section_table_index](const LoadedSection& s) { return s.section_table_index == section_table_index; });
 
     if (find_it != loaded_sections.end()) {
-        // Determine where each function was loaded to and remove that entry from the function map
+        // Determine where each function was loaded to and remove that entry from the function map — but
+        // ONLY if the entry still points to this section's function. Overlays that stream through a shared
+        // heap region (e.g. Beetle Adventure Racing) can reuse an address: after this section loaded, a
+        // later overlay may have loaded over the same address and overwritten func_map[func_address] with
+        // its own function. Erasing blindly by address would delete that live entry, so a subsequent call
+        // to the still-loaded owner fails get_function() and the game aborts. (Beetle Battle: an overlay
+        // unloading from 0x8010C100 was erasing uvlight's function registered at the reused 0x8010D5E0.)
         for (size_t func_index = 0; func_index < section.num_funcs; func_index++) {
             const auto& func = section.funcs[func_index];
             uint32_t func_address = func.offset + find_it->loaded_ram_addr;
-            func_map.erase(func_address);
+            auto map_it = func_map.find(func_address);
+            if (map_it != func_map.end() && map_it->second == func.func) {
+                func_map.erase(map_it);
+            }
         }
         // Reset the section's address in the address table
         section_addresses[section.index] = section.ram_addr;
